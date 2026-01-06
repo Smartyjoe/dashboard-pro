@@ -1,0 +1,28 @@
+/* WP Dashboard Pro - Admin Styles */
+
+.wp-dashboard-pro-admin {
+    max-width: 1200px;
+}
+
+.wp-dashboard-pro-admin .card {
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.wp-dashboard-pro-admin h3 {
+    margin-top: 30px;
+}
+
+.tab-content {
+    padding: 20px 0;
+}
+
+.form-table th {
+    width: 250px;
+}
+
+.wp-dashboard-pro-admin code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+}

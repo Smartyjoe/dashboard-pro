@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress Connection Tester - Smatatech Dashboard Pro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .test-result {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .test-result h3 {
+            margin-top: 0;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .config-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WordPress Connection Tester</h1>
+        <p>Test your WordPress plugin integration with Smatatech Dashboard Pro</p>
+
+        <div class="config-info">
+            <h3>📋 Current Configuration</h3>
+            <p><strong>WordPress URL:</strong> <span id="wp-url">Loading...</span></p>
+            <p><strong>WooCommerce Key:</strong> <span id="wc-key">Loading...</span></p>
+            <p><strong>Debug Mode:</strong> <span id="debug-mode">Loading...</span></p>
+        </div>
+
+        <button onclick="testConnection()">🔍 Test All Connections</button>
+        <button onclick="testAuth()">🔐 Test Authentication</button>
+        <button onclick="testPlugin()">🔌 Test Plugin Endpoints</button>
+        <button onclick="clearResults()">🗑️ Clear Results</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Load environment variables
+        const config = {
+            wordpressApiUrl: 'https://joe.smatatech.com.ng/wp-json',
+            woocommerceKey: 'ck_3260ba9f9390e7baa53ad8f1df6322b1b9f27a6f',
+            woocommerceSecret: 'cs_48f3d693ff9fc8938d22eaf016ac87087cf0f894',
+            authKey: 'UkSz hjrZ iaHa 7dAa ptks xNqw',
+            debugMode: false
+        };
+
+        // Display config
+        document.getElementById('wp-url').textContent = config.wordpressApiUrl;
+        document.getElementById('wc-key').textContent = config.woocommerceKey ? '✅ Configured' : '❌ Not Set';
+        document.getElementById('debug-mode').textContent = config.debugMode ? '✅ Enabled' : '❌ Disabled';
+
+        function addResult(title, status, message, data = null) {
+            const results = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result`;
+            
+            let html = `
+                <h3>${title}</h3>
+                <div class="status ${status}">${message}</div>
+            `;
+            
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            resultDiv.innerHTML = html;
+            results.insertBefore(resultDiv, results.firstChild);
+        }
+
+        function showLoader(button) {
+            const loader = document.createElement('div');
+            loader.className = 'loader';
+            loader.id = 'loader';
+            button.parentElement.appendChild(loader);
+            button.disabled = true;
+        }
+
+        function hideLoader(button) {
+            const loader = document.getElementById('loader');
+            if (loader) loader.remove();
+            button.disabled = false;
+        }
+
+        async function testConnection() {
+            const button = event.target;
+            showLoader(button);
+            
+            addResult('🔄 Starting Connection Tests', 'info', 'Testing all endpoints...');
+
+            // Test 1: WordPress Base URL
+            await testWordPressBase();
+            
+            // Test 2: Plugin Installation
+            await testPluginInstalled();
+            
+            // Test 3: Plugin Endpoints
+            await testPluginEndpoints();
+            
+            hideLoader(button);
+        }
+
+        async function testWordPressBase() {
+            try {
+                const response = await fetch(config.wordpressApiUrl);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(
+                        '✅ WordPress REST API',
+                        'success',
+                        'WordPress REST API is accessible and working!',
+                        {
+                            name: data.name,
+                            description: data.description,
+                            url: data.url,
+                            namespaces: data.namespaces
+                        }
+                    );
+                    return true;
+                } else {
+                    throw new Error('WordPress API returned error');
+                }
+            } catch (error) {
+                addResult(
+                    '❌ WordPress REST API',
+                    'error',
+                    `Failed to connect to WordPress: ${error.message}`,
+                    { error: error.toString() }
+                );
+                return false;
+            }
+        }
+
+        async function testPluginInstalled() {
+            try {
+                const response = await fetch(config.wordpressApiUrl);
+                const data = await response.json();
+                
+                // Check if our plugin namespace exists
+                const hasPlugin = data.namespaces && data.namespaces.includes('dashboard-pro/v1');
+                
+                if (hasPlugin) {
+                    addResult(
+                        '✅ Dashboard Pro Plugin',
+                        'success',
+                        'Dashboard Pro plugin is installed and active!',
+                        { namespace: 'dashboard-pro/v1', status: 'active' }
+                    );
+                    return true;
+                } else {
+                    addResult(
+                        '⚠️ Dashboard Pro Plugin',
+                        'warning',
+                        'Dashboard Pro plugin namespace not found. Make sure the plugin is activated.',
+                        { 
+                            availableNamespaces: data.namespaces,
+                            expected: 'dashboard-pro/v1'
+                        }
+                    );
+                    return false;
+                }
+            } catch (error) {
+                addResult(
+                    '❌ Plugin Check',
+                    'error',
+                    `Failed to check plugin: ${error.message}`
+                );
+                return false;
+            }
+        }
+
+        async function testPluginEndpoints() {
+            const endpoints = [
+                { name: 'Dashboard Stats', url: '/dashboard-pro/v1/dashboard/stats' },
+                { name: 'Users', url: '/dashboard-pro/v1/users' },
+                { name: 'Affiliates', url: '/dashboard-pro/v1/affiliates' },
+                { name: 'Commissions', url: '/dashboard-pro/v1/commissions' },
+                { name: 'Withdrawals', url: '/dashboard-pro/v1/withdrawals' },
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${config.wordpressApiUrl}${endpoint.url}`);
+                    
+                    if (response.status === 401) {
+                        addResult(
+                            `🔐 ${endpoint.name}`,
+                            'info',
+                            'Endpoint exists but requires authentication (This is correct!)',
+                            { status: 401, endpoint: endpoint.url }
+                        );
+                    } else if (response.ok) {
+                        const data = await response.json();
+                        addResult(
+                            `✅ ${endpoint.name}`,
+                            'success',
+                            'Endpoint is accessible',
+                            { status: response.status, endpoint: endpoint.url, sample: data }
+                        );
+                    } else {
+                        addResult(
+                            `⚠️ ${endpoint.name}`,
+                            'warning',
+                            `Endpoint returned status ${response.status}`,
+                            { status: response.status, endpoint: endpoint.url }
+                        );
+                    }
+                } catch (error) {
+                    addResult(
+                        `❌ ${endpoint.name}`,
+                        'error',
+                        `Failed to test endpoint: ${error.message}`,
+                        { endpoint: endpoint.url, error: error.toString() }
+                    );
+                }
+            }
+        }
+
+        async function testAuth() {
+            const button = event.target;
+            showLoader(button);
+            
+            addResult('🔐 Testing Authentication', 'info', 'Attempting to validate auth endpoint...');
+
+            try {
+                const response = await fetch(`${config.wordpressApiUrl}/dashboard-pro/v1/auth/validate`);
+                
+                if (response.status === 401) {
+                    addResult(
+                        '✅ Auth Endpoint',
+                        'success',
+                        'Auth endpoint is working! Returns 401 as expected without credentials.',
+                        { status: 401, message: 'Endpoint requires authentication' }
+                    );
+                } else if (response.ok) {
+                    const data = await response.json();
+                    addResult(
+                        '✅ Auth Endpoint',
+                        'success',
+                        'Auth endpoint is accessible',
+                        data
+                    );
+                } else {
+                    addResult(
+                        '⚠️ Auth Endpoint',
+                        'warning',
+                        `Auth endpoint returned unexpected status: ${response.status}`,
+                        { status: response.status }
+                    );
+                }
+            } catch (error) {
+                addResult(
+                    '❌ Auth Endpoint',
+                    'error',
+                    `Failed to test auth endpoint: ${error.message}`,
+                    { error: error.toString() }
+                );
+            }
+            
+            hideLoader(button);
+        }
+
+        async function testPlugin() {
+            const button = event.target;
+            showLoader(button);
+            
+            await testPluginInstalled();
+            await testPluginEndpoints();
+            
+            hideLoader(button);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            addResult('🗑️ Results Cleared', 'info', 'Ready to run new tests');
+        }
+
+        // Run initial test on load
+        window.onload = function() {
+            addResult('👋 Welcome', 'info', 'Click "Test All Connections" to verify your WordPress integration');
+        };
+    </script>
+</body>
+</html>
